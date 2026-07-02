@@ -1,0 +1,5 @@
+﻿bin/
+*.exe
+*.zip
+erreur.log
+__pycache__/

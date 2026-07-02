@@ -1,0 +1,44 @@
+ELITE CROP — enlever un watermark en bas à droite (photos + vidéos, en masse)
+================================================================================
+
+TÉLÉCHARGER LA DERNIÈRE VERSION
+-------------------------------
+https://github.com/Vanillia75/elite-crop/releases/latest/download/Elite-Crop.zip
+
+LANCER L'OUTIL
+--------------
+Dézippe le fichier où tu veux, puis double-clique sur « Elite-Crop.exe ».
+Rien à installer. (Le dossier doit rester complet : l'exe a besoin du
+sous-dossier « bin ».)
+
+Si Windows affiche « Windows a protégé votre ordinateur » au premier
+lancement : cliquer « Informations complémentaires » puis « Exécuter quand
+même » (c'est normal pour un programme maison, non signé).
+
+UTILISATION (3 étapes)
+----------------------
+1. Clique « Ajouter des fichiers » (ou « Ajouter un dossier »).
+   Formats acceptés : JPG, PNG, WebP, BMP, TIFF / MP4, MOV, MKV, AVI, WebM…
+
+2. Regarde l'aperçu : la ZONE ROUGE = ce qui sera coupé.
+   Monte les curseurs « Couper en bas » et « Couper à droite » jusqu'à ce que
+   le watermark soit entièrement dans le rouge.
+   Les flèches ◀ ▶ permettent de vérifier sur les autres fichiers.
+   (Les réglages sont en %, donc ça s'adapte automatiquement aux fichiers
+   de tailles différentes.)
+
+3. Clique « ⚡ Tout traiter ».
+   Les fichiers nettoyés arrivent dans un sous-dossier « Sans-watermark »
+   à côté des originaux, et le dossier s'ouvre tout seul à la fin.
+   Les originaux ne sont JAMAIS modifiés.
+
+VITESSE
+-------
+Les vidéos sont ré-encodées (qualité quasi identique). L'outil utilise
+automatiquement la carte graphique du PC (NVIDIA, Intel ou AMD) pour aller
+beaucoup plus vite ; sinon il bascule sur le processeur.
+
+ASTUCE
+------
+Si un lot de fichiers a un watermark placé différemment, traite-le dans une
+session séparée avec ses propres réglages.

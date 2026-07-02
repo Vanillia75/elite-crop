@@ -1,9 +1,17 @@
 # Elite Crop ✂️
 
-Petit outil Windows qui **enlève un watermark en bas à droite** de photos et
-vidéos, **en masse** — sans rien installer.
+Outil qui **enlève un watermark en bas à droite** de photos et vidéos,
+**en masse**.
 
-## ⬇️ Télécharger
+## 🌐 Utiliser en ligne (recommandé)
+
+**https://elite-crop-production.up.railway.app**
+
+Rien à installer : glisse tes fichiers, règle la zone rouge, clique
+« ⚡ Tout traiter ». Les photos sont traitées instantanément dans le
+navigateur ; les vidéos passent par le serveur (Railway).
+
+## ⬇️ Ou télécharger l'application Windows
 
 **[Télécharger Elite Crop (zip)](https://github.com/Vanillia75/elite-crop/releases/latest/download/Elite-Crop.zip)**
 

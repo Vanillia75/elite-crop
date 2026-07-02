@@ -1,0 +1,8 @@
+bin/
+*.exe
+*.zip
+.git/
+__pycache__/
+elite_crop.py
+LISEZ-MOI.txt
+erreur.log

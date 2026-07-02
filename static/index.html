@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elite Crop — enlever un watermark en masse</title>
+<meta name="description" content="Elite Crop enlève un watermark en bas à droite de vos photos et vidéos, en masse.">
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<style>
+  :root {
+    --night: #07192E;
+    --ink: #0A2540;
+    --accent: #378ADD;
+    --green: #5DCAA5;
+    --red: #E5484D;
+    --text: #EAF2FA;
+    --muted: #8FA9C4;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--night);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 24px; }
+
+  header { text-align: center; padding: 18px 0 22px; }
+  h1 { font-size: 34px; letter-spacing: -1px; }
+  h1 span { color: var(--accent); }
+  .tagline { color: var(--muted); font-size: 15px; margin-top: 4px; }
+
+  #drop {
+    border: 2px dashed rgba(55,138,221,.5);
+    border-radius: 16px;
+    background: var(--ink);
+    padding: 34px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  #drop.over { border-color: var(--green); background: #0d2f52; }
+  #drop .big { font-size: 17px; font-weight: 600; }
+  #drop .small { color: var(--muted); font-size: 13.5px; margin-top: 6px; }
+
+  #workbench { display: none; margin-top: 20px; }
+
+  .canvasbox { text-align: center; }
+  #preview { background: var(--ink); border-radius: 12px; max-width: 100%; }
+  .nav { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+  .nav .name { flex: 1; text-align: center; color: var(--muted); font-size: 13px;
+               overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  button {
+    background: var(--ink);
+    color: var(--text);
+    border: 1px solid rgba(55,138,221,.4);
+    border-radius: 10px;
+    padding: 8px 16px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+
+  .slider-row { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+  .slider-row label { width: 130px; font-size: 14.5px; }
+  .slider-row input[type=range] { flex: 1; accent-color: var(--accent); }
+  .slider-row .val { width: 130px; color: var(--green); font-weight: 600; font-size: 14px; }
+
+  #go {
+    display: block;
+    width: 100%;
+    margin-top: 20px;
+    background: var(--accent);
+    border: none;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 700;
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: 0 6px 24px rgba(55,138,221,.35);
+  }
+  #go:hover:not(:disabled) { filter: brightness(1.08); }
+
+  #filelist { list-style: none; margin-top: 16px; }
+  #filelist li {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--ink);
+    border-radius: 8px;
+    padding: 7px 12px;
+    margin-bottom: 6px;
+    font-size: 13.5px;
+  }
+  #filelist .st { width: 22px; text-align: center; }
+  #filelist .fn { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #filelist .info { color: var(--muted); font-size: 12px; }
+
+  #summary { margin-top: 14px; text-align: center; font-size: 15px; color: var(--green); font-weight: 600; }
+
+  footer { text-align: center; color: var(--muted); font-size: 12.5px; padding: 26px 0 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>✂️ Elite <span>Crop</span></h1>
+    <p class="tagline">Enlève le watermark en bas à droite — photos &amp; vidéos, en masse.
+      Les originaux ne sont jamais modifiés.</p>
+  </header>
+
+  <div id="drop">
+    <div class="big">Glisse tes photos et vidéos ici</div>
+    <div class="small">ou clique pour choisir · JPG, PNG, WebP, BMP · MP4, MOV, MKV, AVI, WebM</div>
+    <input type="file" id="picker" multiple hidden
+           accept=".jpg,.jpeg,.png,.webp,.bmp,.mp4,.mov,.m4v,.avi,.mkv,.webm,.mpg,.mpeg,.wmv">
+  </div>
+
+  <div id="workbench">
+    <div class="canvasbox">
+      <canvas id="preview" width="840" height="470"></canvas>
+      <div class="nav">
+        <button id="prev">◀ Précédent</button>
+        <span class="name" id="navname"></span>
+        <button id="next">Suivant ▶</button>
+      </div>
+    </div>
+
+    <div class="slider-row">
+      <label>Couper en bas</label>
+      <input type="range" id="pctBottom" min="0" max="40" step="0.5" value="8">
+      <span class="val" id="valBottom"></span>
+    </div>
+    <div class="slider-row">
+      <label>Couper à droite</label>
+      <input type="range" id="pctRight" min="0" max="40" step="0.5" value="0">
+      <span class="val" id="valRight"></span>
+    </div>
+
+    <button id="go">⚡ Tout traiter</button>
+    <div id="summary"></div>
+    <ul id="filelist"></ul>
+  </div>
+
+  <footer>Elite Crop — outil interne · la zone rouge de l'aperçu = ce qui sera coupé</footer>
+</div>
+
+<script>
+const PHOTO_EXTS = ["jpg","jpeg","png","webp","bmp"];
+const VIDEO_EXTS = ["mp4","mov","m4v","avi","mkv","webm","mpg","mpeg","wmv"];
+
+const state = { files: [], index: 0, bitmap: null, busy: false };
+
+const $ = id => document.getElementById(id);
+const drop = $("drop"), picker = $("picker"), bench = $("workbench");
+const canvas = $("preview"), ctx = canvas.getContext("2d");
+const sliderB = $("pctBottom"), sliderR = $("pctRight");
+
+function extOf(name) { return name.split(".").pop().toLowerCase(); }
+function isPhoto(f) { return PHOTO_EXTS.includes(extOf(f.name)); }
+function isVideo(f) { return VIDEO_EXTS.includes(extOf(f.name)); }
+
+// ------------------------------------------------------------ ajout fichiers
+
+drop.addEventListener("click", () => picker.click());
+picker.addEventListener("change", () => addFiles(picker.files));
+drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+drop.addEventListener("drop", e => {
+  e.preventDefault();
+  drop.classList.remove("over");
+  addFiles(e.dataTransfer.files);
+});
+
+function addFiles(list) {
+  let added = 0;
+  for (const f of list) {
+    if ((isPhoto(f) || isVideo(f)) &&
+        !state.files.some(x => x.file.name === f.name && x.file.size === f.size)) {
+      state.files.push({ file: f, status: "attente", info: "" });
+      added++;
+    }
+  }
+  if (added) {
+    state.index = state.files.length - added;
+    bench.style.display = "block";
+    refreshList();
+    refreshPreview();
+  }
+}
+
+// ----------------------------------------------------------------- aperçu
+
+$("prev").addEventListener("click", () => step(-1));
+$("next").addEventListener("click", () => step(1));
+function step(d) {
+  if (!state.files.length) return;
+  state.index = (state.index + d + state.files.length) % state.files.length;
+  refreshPreview();
+}
+
+function photoBitmap(file) {
+  return createImageBitmap(file, { imageOrientation: "from-image" });
+}
+
+function videoFrame(file) {
+  return new Promise((resolve, reject) => {
+    const v = document.createElement("video");
+    v.preload = "auto";
+    v.muted = true;
+    v.src = URL.createObjectURL(file);
+    v.addEventListener("loadeddata", () => {
+      v.currentTime = Math.min(1, (v.duration || 0) / 2);
+    }, { once: true });
+    v.addEventListener("seeked", () => {
+      const c = document.createElement("canvas");
+      c.width = v.videoWidth;
+      c.height = v.videoHeight;
+      c.getContext("2d").drawImage(v, 0, 0);
+      URL.revokeObjectURL(v.src);
+      resolve(c);
+    }, { once: true });
+    v.addEventListener("error", () => reject(new Error("aperçu impossible")), { once: true });
+  });
+}
+
+async function refreshPreview() {
+  const entry = state.files[state.index];
+  if (!entry) return;
+  $("navname").textContent = (state.index + 1) + " / " + state.files.length + " — " + entry.file.name;
+  state.bitmap = null;
+  try {
+    state.bitmap = isPhoto(entry.file) ? await photoBitmap(entry.file)
+                                       : await videoFrame(entry.file);
+  } catch {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#E5484D";
+    ctx.font = "15px Segoe UI";
+    ctx.textAlign = "center";
+    ctx.fillText("Aperçu impossible pour ce fichier (il sera quand même traité).",
+                 canvas.width / 2, canvas.height / 2);
+  }
+  drawOverlay();
+}
+
+function drawOverlay() {
+  updateValueLabels();
+  const bm = state.bitmap;
+  if (!bm) return;
+  const scale = Math.min(canvas.width / bm.width, canvas.height / bm.height);
+  const dw = bm.width * scale, dh = bm.height * scale;
+  const x0 = (canvas.width - dw) / 2, y0 = (canvas.height - dh) / 2;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(bm, x0, y0, dw, dh);
+
+  const cutB = dh * sliderB.value / 100;
+  const cutR = dw * sliderR.value / 100;
+  ctx.fillStyle = "rgba(229, 72, 77, .55)";
+  if (cutB > 0) ctx.fillRect(x0, y0 + dh - cutB, dw, cutB);
+  if (cutR > 0) ctx.fillRect(x0 + dw - cutR, y0, cutR, dh - cutB);
+  ctx.strokeStyle = "#5DCAA5";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x0, y0, dw - cutR, dh - cutB);
+}
+
+function updateValueLabels() {
+  const bm = state.bitmap;
+  $("valBottom").textContent = (+sliderB.value).toFixed(1) + " %" +
+    (bm ? " (" + Math.round(bm.height * sliderB.value / 100) + " px)" : "");
+  $("valRight").textContent = (+sliderR.value).toFixed(1) + " %" +
+    (bm ? " (" + Math.round(bm.width * sliderR.value / 100) + " px)" : "");
+}
+
+sliderB.addEventListener("input", drawOverlay);
+sliderR.addEventListener("input", drawOverlay);
+
+// ------------------------------------------------------------ liste + états
+
+function refreshList() {
+  const icons = { attente: "•", encours: "⏳", ok: "✅", erreur: "❌" };
+  $("filelist").innerHTML = state.files.map(e =>
+    '<li><span class="st">' + icons[e.status] + '</span>' +
+    '<span class="fn">' + e.file.name + '</span>' +
+    '<span class="info">' + e.info + '</span></li>').join("");
+}
+
+// -------------------------------------------------------------- traitement
+
+function croppedSize(w, h) {
+  return {
+    w: Math.max(16, w - Math.round(w * sliderR.value / 100)),
+    h: Math.max(16, h - Math.round(h * sliderB.value / 100)),
+  };
+}
+
+async function cropPhotoLocally(file) {
+  const bm = await photoBitmap(file);
+  const { w, h } = croppedSize(bm.width, bm.height);
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  c.getContext("2d").drawImage(bm, 0, 0, w, h, 0, 0, w, h);
+  const ext = extOf(file.name);
+  const mime = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+  const blob = await new Promise(res => c.toBlob(res, mime, 0.95));
+  if (!blob) throw new Error("échec du recadrage");
+  const name = ext === "bmp" ? file.name.replace(/\.bmp$/i, ".jpg") : file.name;
+  return { name, blob };
+}
+
+async function cropVideoOnServer(file) {
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("bottom", sliderB.value);
+  fd.append("right", sliderR.value);
+  const res = await fetch("/api/process", { method: "POST", body: fd });
+  if (!res.ok) {
+    let msg = "erreur serveur (" + res.status + ")";
+    try { msg = (await res.json()).detail || msg; } catch {}
+    throw new Error(msg);
+  }
+  return { name: file.name, blob: await res.blob() };
+}
+
+$("go").addEventListener("click", async () => {
+  if (state.busy || !state.files.length) return;
+  if (+sliderB.value === 0 && +sliderR.value === 0) {
+    alert("Les deux réglages sont à 0 % : rien ne serait coupé.\n" +
+          "Monte les curseurs jusqu'à recouvrir le watermark en rouge.");
+    return;
+  }
+  state.busy = true;
+  $("go").disabled = true;
+  $("summary").textContent = "";
+
+  const zip = new JSZip();
+  const results = [];
+  for (const entry of state.files) {
+    entry.status = "encours";
+    entry.info = isVideo(entry.file) ? "envoi + traitement vidéo…" : "recadrage…";
+    refreshList();
+    try {
+      const r = isPhoto(entry.file) ? await cropPhotoLocally(entry.file)
+                                    : await cropVideoOnServer(entry.file);
+      results.push(r);
+      entry.status = "ok";
+      entry.info = "";
+    } catch (err) {
+      entry.status = "erreur";
+      entry.info = err.message;
+    }
+    refreshList();
+  }
+
+  if (results.length === 1) {
+    download(results[0].blob, results[0].name);
+  } else if (results.length > 1) {
+    $("summary").textContent = "Préparation du zip…";
+    results.forEach(r => zip.file(r.name, r.blob));
+    download(await zip.generateAsync({ type: "blob" }), "Sans-watermark.zip");
+  }
+
+  const errors = state.files.filter(e => e.status === "erreur").length;
+  $("summary").textContent = errors
+    ? "Terminé : " + results.length + " réussi(s), " + errors + " erreur(s)."
+    : "✅ Terminé ! " + results.length + " fichier(s) téléchargé(s).";
+  state.busy = false;
+  $("go").disabled = false;
+});
+
+function download(blob, name) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+}
+
+updateValueLabels();
+</script>
+</body>
+</html>

@@ -68,6 +68,17 @@
   .slider-row input[type=range] { flex: 1; accent-color: var(--accent); }
   .slider-row .val { width: 130px; color: var(--green); font-weight: 600; font-size: 14px; }
 
+  .comp-row { display: flex; align-items: center; gap: 12px; margin-top: 18px; flex-wrap: wrap; }
+  .comp-row > label { width: 130px; font-size: 14.5px; }
+  .seg { display: inline-flex; border: 1px solid rgba(55,138,221,.4); border-radius: 10px; overflow: hidden; }
+  .seg button {
+    border: none; border-radius: 0; border-right: 1px solid rgba(55,138,221,.25);
+    padding: 8px 14px; font-size: 13.5px; color: var(--muted); background: transparent;
+  }
+  .seg button:last-child { border-right: none; }
+  .seg button.on { background: var(--accent); color: #fff; font-weight: 600; }
+  .comp-hint { flex-basis: 100%; margin-left: 142px; color: var(--muted); font-size: 12.5px; }
+
   #go {
     display: block;
     width: 100%;
@@ -138,6 +149,16 @@
       <span class="val" id="valRight"></span>
     </div>
 
+    <div class="comp-row">
+      <label>Compresser</label>
+      <div class="seg" id="seg">
+        <button data-lvl="none" class="on">Qualité max</button>
+        <button data-lvl="medium">Moyenne</button>
+        <button data-lvl="strong">Forte (léger)</button>
+      </div>
+      <span class="comp-hint" id="compHint">Qualité maximale — le fichier garde son poids d'origine.</span>
+    </div>
+
     <button id="go">⚡ Tout traiter</button>
     <div id="summary"></div>
     <ul id="filelist"></ul>
@@ -150,7 +171,7 @@
 const PHOTO_EXTS = ["jpg","jpeg","png","webp","bmp"];
 const VIDEO_EXTS = ["mp4","mov","m4v","avi","mkv","webm","mpg","mpeg","wmv"];
 
-const state = { files: [], index: 0, bitmap: null, busy: false };
+const state = { files: [], index: 0, bitmap: null, busy: false, compress: "none" };
 
 const $ = id => document.getElementById(id);
 const drop = $("drop"), picker = $("picker"), bench = $("workbench");
@@ -160,6 +181,27 @@ const sliderB = $("pctBottom"), sliderR = $("pctRight");
 function extOf(name) { return name.split(".").pop().toLowerCase(); }
 function isPhoto(f) { return PHOTO_EXTS.includes(extOf(f.name)); }
 function isVideo(f) { return VIDEO_EXTS.includes(extOf(f.name)); }
+
+function fmtSize(bytes) {
+  if (bytes >= 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1).replace(".", ",") + " Mo";
+  return Math.max(1, Math.round(bytes / 1024)) + " Ko";
+}
+
+// ------------------------------------------------------ choix de compression
+
+const COMP_HINTS = {
+  none: "Qualité maximale — le fichier garde son poids d'origine.",
+  medium: "Bon équilibre — réduit nettement le poids, qualité quasi identique (max 1080p).",
+  strong: "Fichiers les plus légers — idéal pour envoyer vite (max 720p).",
+};
+
+$("seg").addEventListener("click", e => {
+  const btn = e.target.closest("button[data-lvl]");
+  if (!btn) return;
+  state.compress = btn.dataset.lvl;
+  [...$("seg").children].forEach(b => b.classList.toggle("on", b === btn));
+  $("compHint").textContent = COMP_HINTS[state.compress];
+});
 
 // ------------------------------------------------------------ ajout fichiers
 
@@ -343,6 +385,7 @@ async function cropVideoOnServer(file, entry) {
   fd.append("file", file);
   fd.append("bottom", sliderB.value);
   fd.append("right", sliderR.value);
+  fd.append("compress", state.compress);
 
   const { job } = await uploadWithProgress("/api/process", fd, p => {
     entry.info = "envoi " + Math.round(p) + " %";
@@ -396,7 +439,9 @@ $("go").addEventListener("click", async () => {
                                     : await cropVideoOnServer(entry.file, entry);
       results.push(r);
       entry.status = "ok";
-      entry.info = "";
+      entry.info = isVideo(entry.file)
+        ? fmtSize(entry.file.size) + " → " + fmtSize(r.blob.size)
+        : "";
     } catch (err) {
       entry.status = "erreur";
       entry.pct = 0;

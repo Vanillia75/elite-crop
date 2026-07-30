@@ -31,6 +31,16 @@ FFMPEG = shutil.which("ffmpeg") or os.path.join(BASE_DIR, "bin", "ffmpeg.exe")
 
 VIDEO_EXTS = {".mp4", ".mov", ".m4v", ".avi", ".mkv", ".webm", ".mpg", ".mpeg", ".wmv"}
 
+# Niveaux de compression proposés à l'utilisateur.
+# crf : plus le chiffre est haut, plus c'est compressé (et léger). preset : vitesse.
+# max_long : réduit la vidéo pour que son plus grand côté ne dépasse pas X pixels
+# (0 = on garde la taille d'origine). ab : qualité du son.
+COMPRESS = {
+    "none":   {"crf": 21, "preset": "superfast", "max_long": 0,    "ab": "192k"},
+    "medium": {"crf": 26, "preset": "veryfast",  "max_long": 1920, "ab": "128k"},
+    "strong": {"crf": 30, "preset": "veryfast",  "max_long": 1280, "ab": "128k"},
+}
+
 app = FastAPI(title="Elite Crop")
 
 # Travaux en cours : id -> {status, progress, dest, workdir, filename, error, ts}
@@ -47,6 +57,16 @@ def run_ffmpeg(args):
 
 def even(n):
     return n if n % 2 == 0 else n - 1
+
+
+def scale_dims(w, h, max_long):
+    """Nouvelle taille pour que le plus grand côté ne dépasse pas max_long.
+    Renvoie None si aucune réduction n'est nécessaire (on n'agrandit jamais)."""
+    longest = max(w, h)
+    if not max_long or longest <= max_long:
+        return None
+    r = max_long / longest
+    return even(max(2, round(w * r))), even(max(2, round(h * r)))
 
 
 def video_size(path):
@@ -82,14 +102,14 @@ def purge_old_jobs():
             del JOBS[jid]
 
 
-def encode_worker(job_id, src, dest, vf, duration):
+def encode_worker(job_id, src, dest, vf, duration, crf, preset, ab):
     """Encode la vidéo en mettant à jour la progression du travail."""
     job = JOBS[job_id]
     last_lines = []
-    for audio in (["-c:a", "copy"], ["-c:a", "aac", "-b:a", "192k"]):
+    for audio in (["-c:a", "copy"], ["-c:a", "aac", "-b:a", ab]):
         job["progress"] = 0.0
         cmd = [FFMPEG, "-y", "-i", src, "-vf", vf,
-               "-c:v", "libx264", "-preset", "superfast", "-crf", "21",
+               "-c:v", "libx264", "-preset", preset, "-crf", str(crf),
                *audio, "-movflags", "+faststart",
                "-progress", "pipe:1", "-nostats", dest]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
@@ -120,7 +140,8 @@ def encode_worker(job_id, src, dest, vf, duration):
 @app.post("/api/process")
 async def process(file: UploadFile = File(...),
                   bottom: float = Form(...),
-                  right: float = Form(...)):
+                  right: float = Form(...),
+                  compress: str = Form("none")):
     purge_old_jobs()
 
     ext = os.path.splitext(file.filename or "video.mp4")[1].lower()
@@ -128,6 +149,7 @@ async def process(file: UploadFile = File(...),
         raise HTTPException(422, "Format vidéo non pris en charge : " + ext)
     bottom = max(0.0, min(60.0, bottom))
     right = max(0.0, min(60.0, right))
+    cfg = COMPRESS.get(compress, COMPRESS["none"])
 
     workdir = tempfile.mkdtemp(prefix="elitecrop_")
     src = os.path.join(workdir, "in" + ext)
@@ -148,6 +170,11 @@ async def process(file: UploadFile = File(...),
     dest = os.path.join(workdir, "out" + out_ext)
     base = os.path.splitext(os.path.basename(file.filename or "video"))[0]
 
+    vf = "crop={}:{}:0:0".format(crop_w, crop_h)
+    sc = scale_dims(crop_w, crop_h, cfg["max_long"])
+    if sc:
+        vf += ",scale={}:{}".format(sc[0], sc[1])
+
     job_id = uuid.uuid4().hex
     with JOBS_LOCK:
         JOBS[job_id] = {
@@ -155,9 +182,10 @@ async def process(file: UploadFile = File(...),
             "dest": dest, "workdir": workdir,
             "filename": base + out_ext, "ts": time.time(),
         }
-    vf = "crop={}:{}:0:0".format(crop_w, crop_h)
-    threading.Thread(target=encode_worker,
-                     args=(job_id, src, dest, vf, duration), daemon=True).start()
+    threading.Thread(
+        target=encode_worker,
+        args=(job_id, src, dest, vf, duration, cfg["crf"], cfg["preset"], cfg["ab"]),
+        daemon=True).start()
     return {"job": job_id}
 
 

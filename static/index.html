@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Elite Crop — enlever un watermark en masse</title>
-<meta name="description" content="Elite Crop enlève un watermark en bas à droite de vos photos et vidéos, en masse.">
+<title>Elite Crop · watermark et compression vidéo en masse</title>
+<meta name="description" content="Elite Crop enlève un watermark en bas à droite et compresse vos vidéos trop lourdes, photos et vidéos en masse.">
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
   :root {
@@ -28,7 +28,20 @@
   header { text-align: center; padding: 18px 0 22px; }
   h1 { font-size: 34px; letter-spacing: -1px; }
   h1 span { color: var(--accent); }
-  .tagline { color: var(--muted); font-size: 15px; margin-top: 4px; }
+  .tagline { color: var(--muted); font-size: 15px; margin-top: 6px; }
+  .tagline b { color: var(--text); font-weight: 600; }
+
+  .feats { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+  .feat {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: var(--ink); border: 1px solid rgba(55,138,221,.28);
+    border-radius: 999px; padding: 7px 15px; font-size: 13.5px; color: var(--text);
+  }
+  .feat-new { border-color: var(--green); }
+  .feat-new .tag {
+    background: var(--green); color: #04241a; font-weight: 700; font-size: 11px;
+    letter-spacing: .3px; padding: 2px 8px; border-radius: 999px; text-transform: uppercase;
+  }
 
   #drop {
     border: 2px dashed rgba(55,138,221,.5);
@@ -117,8 +130,13 @@
 
   <header>
     <h1>✂️ Elite <span>Crop</span></h1>
-    <p class="tagline">Enlève le watermark en bas à droite — photos &amp; vidéos, en masse.
-      Les originaux ne sont jamais modifiés.</p>
+    <p class="tagline">Enlève le watermark en bas à droite <b>et compresse tes vidéos
+      trop lourdes</b>. Photos et vidéos, en masse. Les originaux ne sont jamais modifiés.</p>
+    <div class="feats">
+      <span class="feat">🎯 Watermark en bas à droite</span>
+      <span class="feat feat-new">🗜️ Compression vidéo <span class="tag">Nouveau</span></span>
+      <span class="feat">⚡ En masse</span>
+    </div>
   </header>
 
   <div id="drop">
@@ -165,7 +183,7 @@
     <ul id="filelist"></ul>
   </div>
 
-  <footer>Elite Crop — outil interne · la zone rouge de l'aperçu = ce qui sera coupé</footer>
+  <footer>Elite Crop · outil interne · rogne le watermark ou compresse, au choix</footer>
 </div>
 
 <script>

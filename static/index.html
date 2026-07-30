@@ -153,10 +153,11 @@
       <label>Compresser</label>
       <div class="seg" id="seg">
         <button data-lvl="none" class="on">Qualité max</button>
+        <button data-lvl="light">Légère</button>
         <button data-lvl="medium">Moyenne</button>
-        <button data-lvl="strong">Forte (léger)</button>
+        <button data-lvl="strong">Forte</button>
       </div>
-      <span class="comp-hint" id="compHint">Qualité maximale — le fichier garde son poids d'origine.</span>
+      <span class="comp-hint" id="compHint">Aucune compression : le fichier garde son poids d'origine.</span>
     </div>
 
     <button id="go">⚡ Tout traiter</button>
@@ -183,24 +184,46 @@ function isPhoto(f) { return PHOTO_EXTS.includes(extOf(f.name)); }
 function isVideo(f) { return VIDEO_EXTS.includes(extOf(f.name)); }
 
 function fmtSize(bytes) {
-  if (bytes >= 1024 * 1024) return (bytes / 1024 / 1024).toFixed(1).replace(".", ",") + " Mo";
+  const mo = bytes / 1024 / 1024;
+  if (mo >= 1024) return (mo / 1024).toFixed(mo >= 10240 ? 0 : 1).replace(".", ",") + " Go";
+  if (mo >= 1) return mo.toFixed(1).replace(".", ",") + " Mo";
   return Math.max(1, Math.round(bytes / 1024)) + " Ko";
 }
 
 // ------------------------------------------------------ choix de compression
+// lo/hi = fourchette typique du poids de sortie (fraction du poids d'origine),
+// pour donner une estimation « de X vers Y » avant traitement.
 
-const COMP_HINTS = {
-  none: "Qualité maximale — le fichier garde son poids d'origine.",
-  medium: "Bon équilibre — réduit nettement le poids, qualité quasi identique (max 1080p).",
-  strong: "Fichiers les plus légers — idéal pour envoyer vite (max 720p).",
+const COMP_MODES = {
+  none:   { hint: "Aucune compression : le fichier garde son poids d'origine.",
+            lo: 1, hi: 1 },
+  light:  { hint: "Allège un peu, qualité intacte, résolution conservée.",
+            lo: 0.45, hi: 0.75 },
+  medium: { hint: "Bon équilibre : réduit nettement le poids, qualité quasi identique (max 1080p).",
+            lo: 0.20, hi: 0.45 },
+  strong: { hint: "Fichiers les plus légers, pour envoyer vite (max 720p).",
+            lo: 0.08, hi: 0.22 },
 };
+
+function updateCompHint() {
+  const m = COMP_MODES[state.compress];
+  let txt = m.hint;
+  const total = state.files.filter(e => isVideo(e.file))
+                           .reduce((s, e) => s + e.file.size, 0);
+  if (state.compress !== "none" && total > 0) {
+    txt += " · Estimation : " + fmtSize(total) + " → " +
+           fmtSize(total * m.lo) + "–" + fmtSize(total * m.hi) +
+           " (le poids réel s'affiche après traitement).";
+  }
+  $("compHint").textContent = txt;
+}
 
 $("seg").addEventListener("click", e => {
   const btn = e.target.closest("button[data-lvl]");
   if (!btn) return;
   state.compress = btn.dataset.lvl;
   [...$("seg").children].forEach(b => b.classList.toggle("on", b === btn));
-  $("compHint").textContent = COMP_HINTS[state.compress];
+  updateCompHint();
 });
 
 // ------------------------------------------------------------ ajout fichiers
@@ -229,6 +252,7 @@ function addFiles(list) {
     bench.style.display = "block";
     refreshList();
     refreshPreview();
+    updateCompHint();
   }
 }
 
@@ -415,9 +439,10 @@ async function cropVideoOnServer(file, entry) {
 
 $("go").addEventListener("click", async () => {
   if (state.busy || !state.files.length) return;
-  if (+sliderB.value === 0 && +sliderR.value === 0) {
-    alert("Les deux réglages sont à 0 % : rien ne serait coupé.\n" +
-          "Monte les curseurs jusqu'à recouvrir le watermark en rouge.");
+  if (+sliderB.value === 0 && +sliderR.value === 0 && state.compress === "none") {
+    alert("Rien à faire : aucun rognage et aucune compression.\n\n" +
+          "Monte un curseur pour couper le watermark, ou choisis un mode de " +
+          "compression pour exporter des fichiers plus légers sans rogner.");
     return;
   }
   state.busy = true;

@@ -37,6 +37,7 @@ VIDEO_EXTS = {".mp4", ".mov", ".m4v", ".avi", ".mkv", ".webm", ".mpg", ".mpeg", 
 # (0 = on garde la taille d'origine). ab : qualité du son.
 COMPRESS = {
     "none":   {"crf": 21, "preset": "superfast", "max_long": 0,    "ab": "192k"},
+    "light":  {"crf": 24, "preset": "veryfast",  "max_long": 0,    "ab": "160k"},
     "medium": {"crf": 26, "preset": "veryfast",  "max_long": 1920, "ab": "128k"},
     "strong": {"crf": 30, "preset": "veryfast",  "max_long": 1280, "ab": "128k"},
 }

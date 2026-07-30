@@ -136,16 +136,36 @@ def process_photo(src, pct_bottom, pct_right):
     return dest
 
 
-# Encodeurs vidéo, du plus rapide au plus lent : cartes graphiques NVIDIA,
-# Intel puis AMD, et enfin le processeur (marche partout). Le premier qui
-# fonctionne sur la machine est mémorisé et réutilisé pour la suite du lot.
-ENCODER_CANDIDATES = [
-    ("carte NVIDIA", ["-c:v", "h264_nvenc", "-preset", "p4", "-cq", "22"]),
-    ("carte Intel", ["-c:v", "h264_qsv", "-preset", "veryfast",
-                     "-global_quality", "22"]),
-    ("carte AMD", ["-c:v", "h264_amf", "-quality", "speed"]),
-    ("processeur", ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]),
-]
+# Niveaux de compression : (crf processeur, qualité carte graphique, plafond du
+# plus grand côté en px). Plus le chiffre est haut, plus c'est léger.
+QUALITY = {
+    "none":   ("20", "22", 0),
+    "light":  ("24", "26", 0),
+    "medium": ("26", "28", 1920),
+    "strong": ("30", "32", 1280),
+}
+
+
+def scale_dims(w, h, max_long):
+    """Nouvelle taille pour que le plus grand côté ne dépasse pas max_long.
+    Renvoie None si aucune réduction n'est nécessaire (on n'agrandit jamais)."""
+    longest = max(w, h)
+    if not max_long or longest <= max_long:
+        return None
+    r = max_long / longest
+    return even(max(2, round(w * r))), even(max(2, round(h * r)))
+
+
+def encoder_candidates(cq, crf):
+    """Encodeurs du plus rapide au plus lent : cartes NVIDIA, Intel, AMD, puis
+    le processeur (marche partout). Le premier qui fonctionne est réutilisé."""
+    return [
+        ("carte NVIDIA", ["-c:v", "h264_nvenc", "-preset", "p4", "-cq", cq]),
+        ("carte Intel", ["-c:v", "h264_qsv", "-preset", "veryfast",
+                         "-global_quality", cq]),
+        ("carte AMD", ["-c:v", "h264_amf", "-quality", "speed"]),
+        ("processeur", ["-c:v", "libx264", "-preset", "veryfast", "-crf", crf]),
+    ]
 
 
 class VideoEncoder:
@@ -155,11 +175,16 @@ class VideoEncoder:
         self.start = 0   # index du premier candidat encore plausible
         self.name = None
 
-    def encode(self, src, dest, crop_w, crop_h):
+    def encode(self, src, dest, crop_w, crop_h, level="none"):
+        crf, cq, max_long = QUALITY.get(level, QUALITY["none"])
         vf = "crop={}:{}:0:0".format(crop_w, crop_h)
+        sc = scale_dims(crop_w, crop_h, max_long)
+        if sc:
+            vf += ",scale={}:{}".format(sc[0], sc[1])
+        candidates = encoder_candidates(cq, crf)
         last_out = ""
-        for i in range(self.start, len(ENCODER_CANDIDATES)):
-            name, vargs = ENCODER_CANDIDATES[i]
+        for i in range(self.start, len(candidates)):
+            name, vargs = candidates[i]
             for audio in (["-c:a", "copy"], ["-c:a", "aac", "-b:a", "192k"]):
                 code, out = run_cmd([
                     FFMPEG, "-y", "-i", src, "-vf", vf, *vargs, *audio,
@@ -176,7 +201,7 @@ class VideoEncoder:
 ENCODER = VideoEncoder()
 
 
-def process_video(src, pct_bottom, pct_right):
+def process_video(src, pct_bottom, pct_right, level="none"):
     frame = video_first_frame(src)
     w, h = frame.size
     crop_w = even(max(16, w - round(w * pct_right / 100.0)))
@@ -186,7 +211,7 @@ def process_video(src, pct_bottom, pct_right):
     ext = os.path.splitext(src)[1].lower()
     if ext not in (".mp4", ".mov", ".m4v", ".mkv"):
         dest = os.path.splitext(dest)[0] + ".mp4"
-    ENCODER.encode(src, dest, crop_w, crop_h)
+    ENCODER.encode(src, dest, crop_w, crop_h, level)
     return dest
 
 
@@ -248,6 +273,20 @@ class App:
         self.pct_right = tk.DoubleVar(value=0.0)
         self._make_slider(sliders, "Couper en bas", self.pct_bottom)
         self._make_slider(sliders, "Couper à droite", self.pct_right)
+
+        # --- compression à l'export
+        comp = tk.Frame(root, bg=NIGHT)
+        comp.pack(fill="x", padx=14, pady=(8, 0))
+        tk.Label(comp, text="Compresser", width=14, anchor="w", bg=NIGHT,
+                 fg="white", font=("Segoe UI", 10)).pack(side="left")
+        self.compress = tk.StringVar(value="none")
+        for lvl, txt in (("none", "Qualité max"), ("light", "Légère"),
+                         ("medium", "Moyenne"), ("strong", "Forte")):
+            tk.Radiobutton(comp, text=txt, value=lvl, variable=self.compress,
+                           bg=NIGHT, fg="white", selectcolor=INK,
+                           activebackground=NIGHT, activeforeground=GREEN,
+                           highlightthickness=0, font=("Segoe UI", 9)).pack(
+                side="left", padx=(6, 0))
 
         # --- action + progression
         bottom = tk.Frame(root, bg=NIGHT)
@@ -403,12 +442,14 @@ class App:
         if not self.files:
             messagebox.showinfo("Elite Crop", "Ajoute d'abord des fichiers !")
             return
-        if self.pct_bottom.get() == 0 and self.pct_right.get() == 0:
+        if (self.pct_bottom.get() == 0 and self.pct_right.get() == 0
+                and self.compress.get() == "none"):
             messagebox.showinfo(
                 "Elite Crop",
-                "Les deux réglages sont à 0 % : rien ne serait coupé.\n"
-                "Monte « Couper en bas » et/ou « Couper à droite » jusqu'à "
-                "recouvrir le watermark en rouge.")
+                "Rien à faire : aucun rognage et aucune compression.\n\n"
+                "Monte « Couper en bas » et/ou « Couper à droite » pour couper "
+                "le watermark, ou choisis un mode de compression pour exporter "
+                "des fichiers plus légers sans rogner.")
             return
         self.processing = True
         self.go_btn.config(state="disabled")
@@ -417,6 +458,7 @@ class App:
     def _worker(self):
         pct_b = self.pct_bottom.get()
         pct_r = self.pct_right.get()
+        level = self.compress.get()
         total = len(self.files)
         errors = []
         last_dest = None
@@ -428,7 +470,7 @@ class App:
                 if is_photo(path):
                     last_dest = process_photo(path, pct_b, pct_r)
                 else:
-                    last_dest = process_video(path, pct_b, pct_r)
+                    last_dest = process_video(path, pct_b, pct_r, level)
             except Exception as e:
                 errors.append("{} — {}".format(name, e))
             self._ui(lambda i=i: self.progress.config(value=(i + 1) * 100 / total))
@@ -478,8 +520,11 @@ def selftest():
     if code != 0:
         print("ERREUR création vidéo test :", out[-800:])
         return
-    dest = process_video(video, 10, 5)
-    print("vidéo :", (1280, 720), "->", video_first_frame(dest).size, dest)
+    for level in ("none", "light", "medium", "strong"):
+        dest = process_video(video, 10, 5, level)
+        size = os.path.getsize(dest)
+        print("vidéo [{}] : (1280, 720) -> {}  {} o".format(
+            level, video_first_frame(dest).size, size))
     print("encodeur utilisé :", ENCODER.name)
     print("SELFTEST OK")
 

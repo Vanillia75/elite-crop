@@ -139,10 +139,11 @@ def process_photo(src, pct_bottom, pct_right):
 # Niveaux de compression : (crf processeur, qualité carte graphique, plafond du
 # plus grand côté en px). Plus le chiffre est haut, plus c'est léger.
 QUALITY = {
-    "none":   ("20", "22", 0),
-    "light":  ("24", "26", 0),
-    "medium": ("26", "28", 1920),
-    "strong": ("30", "32", 1280),
+    "none":    ("20", "22", 0),
+    "light":   ("24", "26", 0),
+    "medium":  ("26", "28", 1920),
+    "strong":  ("30", "32", 1280),
+    "extreme": ("34", "36", 960),
 }
 
 
@@ -281,7 +282,8 @@ class App:
                  fg="white", font=("Segoe UI", 10)).pack(side="left")
         self.compress = tk.StringVar(value="none")
         for lvl, txt in (("none", "Qualité max"), ("light", "Légère"),
-                         ("medium", "Moyenne"), ("strong", "Forte")):
+                         ("medium", "Moyenne"), ("strong", "Forte"),
+                         ("extreme", "Extrême")):
             tk.Radiobutton(comp, text=txt, value=lvl, variable=self.compress,
                            bg=NIGHT, fg="white", selectcolor=INK,
                            activebackground=NIGHT, activeforeground=GREEN,
@@ -520,7 +522,7 @@ def selftest():
     if code != 0:
         print("ERREUR création vidéo test :", out[-800:])
         return
-    for level in ("none", "light", "medium", "strong"):
+    for level in ("none", "light", "medium", "strong", "extreme"):
         dest = process_video(video, 10, 5, level)
         size = os.path.getsize(dest)
         print("vidéo [{}] : (1280, 720) -> {}  {} o".format(

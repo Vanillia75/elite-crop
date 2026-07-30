@@ -174,6 +174,7 @@
         <button data-lvl="light">Légère</button>
         <button data-lvl="medium">Moyenne</button>
         <button data-lvl="strong">Forte</button>
+        <button data-lvl="extreme">Extrême</button>
       </div>
       <span class="comp-hint" id="compHint">Aucune compression : le fichier garde son poids d'origine.</span>
     </div>
@@ -219,8 +220,10 @@ const COMP_MODES = {
             lo: 0.45, hi: 0.75 },
   medium: { hint: "Bon équilibre : réduit nettement le poids, qualité quasi identique (max 1080p).",
             lo: 0.20, hi: 0.45 },
-  strong: { hint: "Fichiers les plus légers, pour envoyer vite (max 720p).",
+  strong: { hint: "Fichiers légers, pour envoyer vite (max 720p).",
             lo: 0.08, hi: 0.22 },
+  extreme:{ hint: "Compression maximale : fichiers minuscules, qualité réduite (max 540p).",
+            lo: 0.03, hi: 0.10 },
 };
 
 function updateCompHint() {

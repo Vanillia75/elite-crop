@@ -36,10 +36,11 @@ VIDEO_EXTS = {".mp4", ".mov", ".m4v", ".avi", ".mkv", ".webm", ".mpg", ".mpeg", 
 # max_long : réduit la vidéo pour que son plus grand côté ne dépasse pas X pixels
 # (0 = on garde la taille d'origine). ab : qualité du son.
 COMPRESS = {
-    "none":   {"crf": 21, "preset": "superfast", "max_long": 0,    "ab": "192k"},
-    "light":  {"crf": 24, "preset": "veryfast",  "max_long": 0,    "ab": "160k"},
-    "medium": {"crf": 26, "preset": "veryfast",  "max_long": 1920, "ab": "128k"},
-    "strong": {"crf": 30, "preset": "veryfast",  "max_long": 1280, "ab": "128k"},
+    "none":    {"crf": 21, "preset": "superfast", "max_long": 0,    "ab": "192k"},
+    "light":   {"crf": 24, "preset": "veryfast",  "max_long": 0,    "ab": "160k"},
+    "medium":  {"crf": 26, "preset": "veryfast",  "max_long": 1920, "ab": "128k"},
+    "strong":  {"crf": 30, "preset": "veryfast",  "max_long": 1280, "ab": "128k"},
+    "extreme": {"crf": 34, "preset": "veryfast",  "max_long": 960,  "ab": "96k"},
 }
 
 app = FastAPI(title="Elite Crop")

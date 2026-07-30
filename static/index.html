@@ -541,25 +541,6 @@ function download(blob, name) {
 
 updateValueLabels();
 
-// ------------------------------------------ bouton téléchargement selon l'OS
-// L'appli à télécharger est pour Windows. Sur Mac / autre, le site fait déjà
-// tout : on remplace le bouton par une note « rien à installer ».
-(function () {
-  const dl = document.querySelector(".dl");
-  if (!dl || /Windows/i.test(navigator.userAgent)) return;
-  const mac = /Macintosh|Mac OS X/i.test(navigator.userAgent);
-  dl.removeAttribute("href");
-  dl.style.cursor = "default";
-  dl.style.borderColor = "rgba(55,138,221,.28)";
-  dl.innerHTML =
-    '<span class="ic">' + (mac ? "🍎" : "🌐") + '</span><span>' +
-    '<span class="t">Rien à installer : tout se passe ici</span><br>' +
-    '<span class="s">' +
-    (mac ? "l'appli à télécharger est réservée à Windows ; sur Mac, le site fait tout"
-         : "le site fonctionne directement, sur tous les appareils") +
-    "</span></span>";
-})();
-
 // ------------------------------------ rechargement auto quand une MAJ sort
 // Vérifie la version toutes les 60 s. Si elle a changé, on recharge la page
 // tout seul — mais seulement au repos (aucun fichier en cours) pour ne rien

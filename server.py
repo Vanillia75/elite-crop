@@ -10,6 +10,7 @@ de progression :
 Les photos, elles, sont recadrées directement dans le navigateur.
 """
 
+import hashlib
 import os
 import re
 import shutil
@@ -25,9 +26,23 @@ from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+INDEX = os.path.join(BASE_DIR, "static", "index.html")
 
 # ffmpeg : celui du système (Railway/Docker), sinon celui du dossier bin (PC local)
 FFMPEG = shutil.which("ffmpeg") or os.path.join(BASE_DIR, "bin", "ffmpeg.exe")
+
+
+def _index_version():
+    """Empreinte de la page : change dès qu'on modifie index.html, ce qui permet
+    aux onglets déjà ouverts de détecter une nouvelle version et de se recharger."""
+    try:
+        with open(INDEX, "rb") as f:
+            return hashlib.md5(f.read()).hexdigest()[:12]
+    except OSError:
+        return "0"
+
+
+APP_VERSION = _index_version()
 
 VIDEO_EXTS = {".mp4", ".mov", ".m4v", ".avi", ".mkv", ".webm", ".mpg", ".mpeg", ".wmv"}
 
@@ -221,6 +236,21 @@ def result(job_id: str):
 @app.get("/api/health")
 def health():
     return {"ok": True, "ffmpeg": os.path.basename(FFMPEG)}
+
+
+@app.get("/api/version")
+def version():
+    return {"version": APP_VERSION}
+
+
+@app.middleware("http")
+async def no_cache_html(request, call_next):
+    """Empêche la mise en cache de la page : au prochain passage, chacun reçoit
+    la dernière version sans avoir à vider son cache ni faire Ctrl+F5."""
+    resp = await call_next(request)
+    if resp.headers.get("content-type", "").startswith("text/html"):
+        resp.headers["Cache-Control"] = "no-store, must-revalidate"
+    return resp
 
 
 # La page web (déclaré en dernier pour ne pas masquer /api/*)

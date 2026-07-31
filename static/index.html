@@ -25,7 +25,16 @@
   }
   .wrap { max-width: 880px; margin: 0 auto; padding: 24px; }
 
-  header { text-align: center; padding: 18px 0 22px; }
+  .topbar { display: flex; justify-content: flex-end; }
+  .lang { display: inline-flex; border: 1px solid rgba(55,138,221,.4); border-radius: 8px; overflow: hidden; }
+  .lang button {
+    border: none; border-radius: 0; border-right: 1px solid rgba(55,138,221,.25);
+    padding: 5px 12px; font-size: 12.5px; color: var(--muted); background: transparent;
+  }
+  .lang button:last-child { border-right: none; }
+  .lang button.on { background: var(--accent); color: #fff; font-weight: 600; }
+
+  header { text-align: center; padding: 8px 0 22px; }
   h1 { font-size: 34px; letter-spacing: -1px; }
   h1 span { color: var(--accent); }
   .tagline { color: var(--muted); font-size: 15px; margin-top: 6px; }
@@ -139,29 +148,35 @@
 <body>
 <div class="wrap">
 
+  <div class="topbar">
+    <div class="lang" id="lang">
+      <button data-lang="fr">FR</button>
+      <button data-lang="en">EN</button>
+    </div>
+  </div>
+
   <header>
     <h1>✂️ Elite <span>Crop</span></h1>
-    <p class="tagline">Enlève le watermark en bas à droite <b>et compresse tes vidéos
-      trop lourdes</b>. Photos et vidéos, en masse. Les originaux ne sont jamais modifiés.</p>
+    <p class="tagline" id="tagline"></p>
     <div class="feats">
-      <span class="feat">🎯 Watermark en bas à droite</span>
-      <span class="feat feat-new">🗜️ Compression vidéo <span class="tag">Nouveau</span></span>
-      <span class="feat">⚡ En masse</span>
+      <span class="feat" id="featWatermark"></span>
+      <span class="feat feat-new" id="featCompress"></span>
+      <span class="feat" id="featBulk"></span>
     </div>
   </header>
 
   <div id="drop">
-    <div class="big">Glisse tes photos et vidéos ici</div>
-    <div class="small">ou clique pour choisir · JPG, PNG, WebP, BMP · MP4, MOV, MKV, AVI, WebM</div>
+    <div class="big" id="dropBig"></div>
+    <div class="small" id="dropSmall"></div>
     <input type="file" id="picker" multiple hidden
            accept=".jpg,.jpeg,.png,.webp,.bmp,.mp4,.mov,.m4v,.avi,.mkv,.webm,.mpg,.mpeg,.wmv">
   </div>
 
-  <a class="dl" href="https://github.com/Vanillia75/elite-crop/releases/latest/download/Elite-Crop.zip">
+  <a class="dl" id="dl" href="https://github.com/Vanillia75/elite-crop/releases/latest/download/Elite-Crop.zip">
     <span class="ic">💻</span>
     <span>
-      <span class="t">Télécharger l'appli Windows</span><br>
-      <span class="s">hors ligne, encore plus rapide pour les grosses vidéos</span>
+      <span class="t" id="dlTitle"></span><br>
+      <span class="s" id="dlSub"></span>
     </span>
   </a>
 
@@ -169,41 +184,41 @@
     <div class="canvasbox">
       <canvas id="preview" width="840" height="470"></canvas>
       <div class="nav">
-        <button id="prev">◀ Précédent</button>
+        <button id="prev"></button>
         <span class="name" id="navname"></span>
-        <button id="next">Suivant ▶</button>
+        <button id="next"></button>
       </div>
     </div>
 
     <div class="slider-row">
-      <label>Couper en bas</label>
+      <label id="labelBottom"></label>
       <input type="range" id="pctBottom" min="0" max="40" step="0.5" value="8">
       <span class="val" id="valBottom"></span>
     </div>
     <div class="slider-row">
-      <label>Couper à droite</label>
+      <label id="labelRight"></label>
       <input type="range" id="pctRight" min="0" max="40" step="0.5" value="0">
       <span class="val" id="valRight"></span>
     </div>
 
     <div class="comp-row">
-      <label>Compresser</label>
+      <label id="labelCompress"></label>
       <div class="seg" id="seg">
-        <button data-lvl="none" class="on">Qualité max</button>
-        <button data-lvl="light">Légère</button>
-        <button data-lvl="medium">Moyenne</button>
-        <button data-lvl="strong">Forte</button>
-        <button data-lvl="extreme">Extrême</button>
+        <button data-lvl="none" class="on"></button>
+        <button data-lvl="light"></button>
+        <button data-lvl="medium"></button>
+        <button data-lvl="strong"></button>
+        <button data-lvl="extreme"></button>
       </div>
-      <span class="comp-hint" id="compHint">Aucune compression : le fichier garde son poids d'origine.</span>
+      <span class="comp-hint" id="compHint"></span>
     </div>
 
-    <button id="go">⚡ Tout traiter</button>
+    <button id="go"></button>
     <div id="summary"></div>
     <ul id="filelist"></ul>
   </div>
 
-  <footer>Elite Crop · outil interne · rogne le watermark ou compresse, au choix</footer>
+  <footer id="footer"></footer>
 </div>
 
 <script>
@@ -217,43 +232,190 @@ const drop = $("drop"), picker = $("picker"), bench = $("workbench");
 const canvas = $("preview"), ctx = canvas.getContext("2d");
 const sliderB = $("pctBottom"), sliderR = $("pctRight");
 
+// ------------------------------------------------------------------ langues
+
+const I18N = {
+  fr: {
+    title: "Elite Crop · watermark et compression vidéo en masse",
+    metaDesc: "Elite Crop enlève un watermark en bas à droite et compresse vos vidéos trop lourdes, photos et vidéos en masse.",
+    taglineHTML: "Enlève le watermark en bas à droite <b>et compresse tes vidéos trop lourdes</b>. Photos et vidéos, en masse. Les originaux ne sont jamais modifiés.",
+    featWatermark: "🎯 Watermark en bas à droite",
+    featCompressHTML: "🗜️ Compression vidéo <span class=\"tag\">Nouveau</span>",
+    featBulk: "⚡ En masse",
+    dropBig: "Glisse tes photos et vidéos ici",
+    dropSmall: "ou clique pour choisir · JPG, PNG, WebP, BMP · MP4, MOV, MKV, AVI, WebM",
+    dlTitle: "Télécharger l'appli Windows",
+    dlSub: "hors ligne, encore plus rapide pour les grosses vidéos",
+    navPrev: "◀ Précédent",
+    navNext: "Suivant ▶",
+    cutBottom: "Couper en bas",
+    cutRight: "Couper à droite",
+    compressLabel: "Compresser",
+    mode_none: "Qualité max",
+    mode_light: "Légère",
+    mode_medium: "Moyenne",
+    mode_strong: "Forte",
+    mode_extreme: "Extrême",
+    goBtn: "⚡ Tout traiter",
+    footer: "Elite Crop · outil interne · rogne le watermark ou compresse, au choix",
+    hint_none: "Aucune compression : le fichier garde son poids d'origine.",
+    hint_light: "Allège un peu, qualité intacte, résolution conservée.",
+    hint_medium: "Bon équilibre : réduit nettement le poids, qualité quasi identique (max 1080p).",
+    hint_strong: "Fichiers légers, pour envoyer vite (max 720p).",
+    hint_extreme: "Compression maximale : fichiers minuscules, qualité réduite (max 540p).",
+    estPrefix: " · Estimation : ",
+    estSuffix: " (le poids réel s'affiche après traitement).",
+    stUpload: "envoi {p} %",
+    stProcess: "traitement {p} %",
+    stDownload: "téléchargement…",
+    stPrepare: "préparation…",
+    stCrop: "recadrage…",
+    stFileN: "Fichier {n} / {total}…",
+    stZip: "Préparation du zip…",
+    stDoneOk: "✅ Terminé ! {n} fichier(s) téléchargé(s).",
+    stDoneErr: "Terminé : {ok} réussi(s), {err} erreur(s).",
+    errServer: "erreur serveur ({code})",
+    errConn: "connexion perdue pendant l'envoi",
+    errTrack: "suivi du traitement impossible",
+    errProcess: "échec du traitement",
+    errResult: "téléchargement du résultat impossible",
+    errCropPhoto: "échec du recadrage",
+    previewFail: "Aperçu impossible pour ce fichier (il sera quand même traité).",
+    alertNothing: "Rien à faire : aucun rognage et aucune compression.\n\nMonte un curseur pour couper le watermark, ou choisis un mode de compression pour exporter des fichiers plus légers sans rogner.",
+    zipName: "Sans-watermark.zip",
+    unitG: "Go", unitM: "Mo", unitK: "Ko", dot: ",",
+  },
+  en: {
+    title: "Elite Crop · watermark removal and video compression in bulk",
+    metaDesc: "Elite Crop removes a bottom-right watermark and compresses your oversized videos, photos and videos in bulk.",
+    taglineHTML: "Removes the bottom-right watermark <b>and compresses your oversized videos</b>. Photos and videos, in bulk. Originals are never modified.",
+    featWatermark: "🎯 Bottom-right watermark",
+    featCompressHTML: "🗜️ Video compression <span class=\"tag\">New</span>",
+    featBulk: "⚡ In bulk",
+    dropBig: "Drop your photos and videos here",
+    dropSmall: "or click to choose · JPG, PNG, WebP, BMP · MP4, MOV, MKV, AVI, WebM",
+    dlTitle: "Download the Windows app",
+    dlSub: "offline, even faster for large videos",
+    navPrev: "◀ Previous",
+    navNext: "Next ▶",
+    cutBottom: "Cut bottom",
+    cutRight: "Cut right",
+    compressLabel: "Compress",
+    mode_none: "Max quality",
+    mode_light: "Light",
+    mode_medium: "Medium",
+    mode_strong: "Strong",
+    mode_extreme: "Extreme",
+    goBtn: "⚡ Process all",
+    footer: "Elite Crop · internal tool · crop the watermark or compress, your choice",
+    hint_none: "No compression: the file keeps its original size.",
+    hint_light: "Lightens a bit, quality intact, resolution kept.",
+    hint_medium: "Good balance: clearly smaller, near-identical quality (max 1080p).",
+    hint_strong: "Light files, to send fast (max 720p).",
+    hint_extreme: "Maximum compression: tiny files, reduced quality (max 540p).",
+    estPrefix: " · Estimate: ",
+    estSuffix: " (actual size shown after processing).",
+    stUpload: "upload {p}%",
+    stProcess: "processing {p}%",
+    stDownload: "downloading…",
+    stPrepare: "preparing…",
+    stCrop: "cropping…",
+    stFileN: "File {n} / {total}…",
+    stZip: "Preparing the zip…",
+    stDoneOk: "✅ Done! {n} file(s) downloaded.",
+    stDoneErr: "Done: {ok} succeeded, {err} error(s).",
+    errServer: "server error ({code})",
+    errConn: "connection lost during upload",
+    errTrack: "cannot track processing",
+    errProcess: "processing failed",
+    errResult: "cannot download the result",
+    errCropPhoto: "cropping failed",
+    previewFail: "Preview unavailable for this file (it will still be processed).",
+    alertNothing: "Nothing to do: no cropping and no compression.\n\nMove a slider to cut the watermark, or pick a compression mode to export lighter files without cropping.",
+    zipName: "No-watermark.zip",
+    unitG: "GB", unitM: "MB", unitK: "KB", dot: ".",
+  },
+};
+
+let LANG = "fr";
+try {
+  const saved = localStorage.getItem("elitecrop_lang");
+  if (saved === "fr" || saved === "en") LANG = saved;
+  else LANG = /^fr/i.test(navigator.language || "") ? "fr" : "en";
+} catch { LANG = /^fr/i.test(navigator.language || "") ? "fr" : "en"; }
+
+function t(key, p) {
+  let s = (I18N[LANG] && I18N[LANG][key]) != null ? I18N[LANG][key] : (I18N.fr[key] || key);
+  if (p) for (const k in p) s = s.split("{" + k + "}").join(p[k]);
+  return s;
+}
+
+function applyLang(lang) {
+  LANG = lang === "en" ? "en" : "fr";
+  try { localStorage.setItem("elitecrop_lang", LANG); } catch {}
+  document.documentElement.lang = LANG;
+  document.title = t("title");
+  const md = document.querySelector('meta[name="description"]');
+  if (md) md.setAttribute("content", t("metaDesc"));
+  $("tagline").innerHTML = t("taglineHTML");
+  $("featWatermark").textContent = t("featWatermark");
+  $("featCompress").innerHTML = t("featCompressHTML");
+  $("featBulk").textContent = t("featBulk");
+  $("dropBig").textContent = t("dropBig");
+  $("dropSmall").textContent = t("dropSmall");
+  $("dlTitle").textContent = t("dlTitle");
+  $("dlSub").textContent = t("dlSub");
+  $("prev").textContent = t("navPrev");
+  $("next").textContent = t("navNext");
+  $("labelBottom").textContent = t("cutBottom");
+  $("labelRight").textContent = t("cutRight");
+  $("labelCompress").textContent = t("compressLabel");
+  document.querySelectorAll("#seg button").forEach(b => { b.textContent = t("mode_" + b.dataset.lvl); });
+  $("go").textContent = t("goBtn");
+  $("footer").textContent = t("footer");
+  document.querySelectorAll("#lang button").forEach(b => b.classList.toggle("on", b.dataset.lang === LANG));
+  updateValueLabels();
+  updateCompHint();
+  if (state.files.length) { refreshList(); refreshPreview(); }
+}
+
+$("lang").addEventListener("click", e => {
+  const b = e.target.closest("button[data-lang]");
+  if (b) applyLang(b.dataset.lang);
+});
+
 function extOf(name) { return name.split(".").pop().toLowerCase(); }
 function isPhoto(f) { return PHOTO_EXTS.includes(extOf(f.name)); }
 function isVideo(f) { return VIDEO_EXTS.includes(extOf(f.name)); }
 
 function fmtSize(bytes) {
+  const d = t("dot");
+  const fmt = (n, dec) => n.toFixed(dec).replace(".", d);
   const mo = bytes / 1024 / 1024;
-  if (mo >= 1024) return (mo / 1024).toFixed(mo >= 10240 ? 0 : 1).replace(".", ",") + " Go";
-  if (mo >= 1) return mo.toFixed(1).replace(".", ",") + " Mo";
-  return Math.max(1, Math.round(bytes / 1024)) + " Ko";
+  if (mo >= 1024) return fmt(mo / 1024, mo >= 10240 ? 0 : 1) + " " + t("unitG");
+  if (mo >= 1) return fmt(mo, 1) + " " + t("unitM");
+  return Math.max(1, Math.round(bytes / 1024)) + " " + t("unitK");
 }
 
 // ------------------------------------------------------ choix de compression
-// lo/hi = fourchette typique du poids de sortie (fraction du poids d'origine),
-// pour donner une estimation « de X vers Y » avant traitement.
+// lo/hi = fourchette typique du poids de sortie (fraction du poids d'origine).
 
 const COMP_MODES = {
-  none:   { hint: "Aucune compression : le fichier garde son poids d'origine.",
-            lo: 1, hi: 1 },
-  light:  { hint: "Allège un peu, qualité intacte, résolution conservée.",
-            lo: 0.45, hi: 0.75 },
-  medium: { hint: "Bon équilibre : réduit nettement le poids, qualité quasi identique (max 1080p).",
-            lo: 0.20, hi: 0.45 },
-  strong: { hint: "Fichiers légers, pour envoyer vite (max 720p).",
-            lo: 0.08, hi: 0.22 },
-  extreme:{ hint: "Compression maximale : fichiers minuscules, qualité réduite (max 540p).",
-            lo: 0.03, hi: 0.10 },
+  none:    { lo: 1,    hi: 1 },
+  light:   { lo: 0.45, hi: 0.75 },
+  medium:  { lo: 0.20, hi: 0.45 },
+  strong:  { lo: 0.08, hi: 0.22 },
+  extreme: { lo: 0.03, hi: 0.10 },
 };
 
 function updateCompHint() {
   const m = COMP_MODES[state.compress];
-  let txt = m.hint;
+  let txt = t("hint_" + state.compress);
   const total = state.files.filter(e => isVideo(e.file))
                            .reduce((s, e) => s + e.file.size, 0);
   if (state.compress !== "none" && total > 0) {
-    txt += " · Estimation : " + fmtSize(total) + " → " +
-           fmtSize(total * m.lo) + "–" + fmtSize(total * m.hi) +
-           " (le poids réel s'affiche après traitement).";
+    txt += t("estPrefix") + fmtSize(total) + " → " +
+           fmtSize(total * m.lo) + "–" + fmtSize(total * m.hi) + t("estSuffix");
   }
   $("compHint").textContent = txt;
 }
@@ -327,7 +489,7 @@ function videoFrame(file) {
       URL.revokeObjectURL(v.src);
       resolve(c);
     }, { once: true });
-    v.addEventListener("error", () => reject(new Error("aperçu impossible")), { once: true });
+    v.addEventListener("error", () => reject(new Error("preview")), { once: true });
   });
 }
 
@@ -344,8 +506,7 @@ async function refreshPreview() {
     ctx.fillStyle = "#E5484D";
     ctx.font = "15px Segoe UI";
     ctx.textAlign = "center";
-    ctx.fillText("Aperçu impossible pour ce fichier (il sera quand même traité).",
-                 canvas.width / 2, canvas.height / 2);
+    ctx.fillText(t("previewFail"), canvas.width / 2, canvas.height / 2);
   }
   drawOverlay();
 }
@@ -390,9 +551,10 @@ function refreshList() {
     const pct = e.status === "ok" ? 100 : (e.pct || 0);
     const bg = 'background:linear-gradient(90deg, rgba(55,138,221,.35) ' +
                pct + '%, var(--ink) ' + pct + '%);';
+    const info = typeof e.info === "function" ? e.info() : (e.info || "");
     return '<li style="' + bg + '"><span class="st">' + icons[e.status] + '</span>' +
       '<span class="fn">' + e.file.name + '</span>' +
-      '<span class="info">' + e.info + '</span></li>';
+      '<span class="info">' + info + '</span></li>';
   }).join("");
 }
 
@@ -415,7 +577,7 @@ async function cropPhotoLocally(file) {
   const ext = extOf(file.name);
   const mime = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
   const blob = await new Promise(res => c.toBlob(res, mime, 0.95));
-  if (!blob) throw new Error("échec du recadrage");
+  if (!blob) throw new Error(t("errCropPhoto"));
   const name = ext === "bmp" ? file.name.replace(/\.bmp$/i, ".jpg") : file.name;
   return { name, blob };
 }
@@ -431,12 +593,12 @@ function uploadWithProgress(url, fd, onProgress) {
       if (x.status >= 200 && x.status < 300) {
         resolve(JSON.parse(x.responseText));
       } else {
-        let msg = "erreur serveur (" + x.status + ")";
+        let msg = t("errServer", { code: x.status });
         try { msg = JSON.parse(x.responseText).detail || msg; } catch {}
         reject(new Error(msg));
       }
     };
-    x.onerror = () => reject(new Error("connexion perdue pendant l'envoi"));
+    x.onerror = () => reject(new Error(t("errConn")));
     x.send(fd);
   });
 }
@@ -452,7 +614,8 @@ async function cropVideoOnServer(file, entry) {
   fd.append("compress", state.compress);
 
   const { job } = await uploadWithProgress("/api/process", fd, p => {
-    entry.info = "envoi " + Math.round(p) + " %";
+    const pr = Math.round(p);
+    entry.info = () => t("stUpload", { p: pr });
     entry.pct = p * 0.4;
     refreshList();
   });
@@ -460,29 +623,28 @@ async function cropVideoOnServer(file, entry) {
   for (;;) {
     await sleep(800);
     const res = await fetch("/api/progress/" + job);
-    if (!res.ok) throw new Error("suivi du traitement impossible");
+    if (!res.ok) throw new Error(t("errTrack"));
     const st = await res.json();
-    if (st.status === "error") throw new Error(st.error || "échec du traitement");
-    entry.info = "traitement " + Math.round(st.progress) + " %";
+    if (st.status === "error") throw new Error(st.error || t("errProcess"));
+    const pr = Math.round(st.progress);
+    entry.info = () => t("stProcess", { p: pr });
     entry.pct = 40 + st.progress * 0.55;
     refreshList();
     if (st.status === "done") break;
   }
 
-  entry.info = "téléchargement…";
+  entry.info = () => t("stDownload");
   entry.pct = 97;
   refreshList();
   const res = await fetch("/api/result/" + job);
-  if (!res.ok) throw new Error("téléchargement du résultat impossible");
+  if (!res.ok) throw new Error(t("errResult"));
   return { name: file.name, blob: await res.blob() };
 }
 
 $("go").addEventListener("click", async () => {
   if (state.busy || !state.files.length) return;
   if (+sliderB.value === 0 && +sliderR.value === 0 && state.compress === "none") {
-    alert("Rien à faire : aucun rognage et aucune compression.\n\n" +
-          "Monte un curseur pour couper le watermark, ou choisis un mode de " +
-          "compression pour exporter des fichiers plus légers sans rogner.");
+    alert(t("alertNothing"));
     return;
   }
   state.busy = true;
@@ -494,23 +656,27 @@ $("go").addEventListener("click", async () => {
   let n = 0;
   for (const entry of state.files) {
     n++;
-    $("summary").textContent = "Fichier " + n + " / " + state.files.length + "…";
+    $("summary").textContent = t("stFileN", { n: n, total: state.files.length });
     entry.status = "encours";
     entry.pct = 0;
-    entry.info = isVideo(entry.file) ? "préparation…" : "recadrage…";
+    entry.info = isVideo(entry.file) ? () => t("stPrepare") : () => t("stCrop");
     refreshList();
     try {
       const r = isPhoto(entry.file) ? await cropPhotoLocally(entry.file)
                                     : await cropVideoOnServer(entry.file, entry);
       results.push(r);
       entry.status = "ok";
-      entry.info = isVideo(entry.file)
-        ? fmtSize(entry.file.size) + " → " + fmtSize(r.blob.size)
-        : "";
+      if (isVideo(entry.file)) {
+        const before = entry.file.size, after = r.blob.size;
+        entry.info = () => fmtSize(before) + " → " + fmtSize(after);
+      } else {
+        entry.info = "";
+      }
     } catch (err) {
       entry.status = "erreur";
       entry.pct = 0;
-      entry.info = err.message;
+      const msg = err.message;
+      entry.info = () => msg;
     }
     refreshList();
   }
@@ -518,15 +684,15 @@ $("go").addEventListener("click", async () => {
   if (results.length === 1) {
     download(results[0].blob, results[0].name);
   } else if (results.length > 1) {
-    $("summary").textContent = "Préparation du zip…";
+    $("summary").textContent = t("stZip");
     results.forEach(r => zip.file(r.name, r.blob));
-    download(await zip.generateAsync({ type: "blob" }), "Sans-watermark.zip");
+    download(await zip.generateAsync({ type: "blob" }), t("zipName"));
   }
 
   const errors = state.files.filter(e => e.status === "erreur").length;
   $("summary").textContent = errors
-    ? "Terminé : " + results.length + " réussi(s), " + errors + " erreur(s)."
-    : "✅ Terminé ! " + results.length + " fichier(s) téléchargé(s).";
+    ? t("stDoneErr", { ok: results.length, err: errors })
+    : t("stDoneOk", { n: results.length });
   state.busy = false;
   $("go").disabled = false;
 });
@@ -539,7 +705,7 @@ function download(blob, name) {
   setTimeout(() => URL.revokeObjectURL(a.href), 30000);
 }
 
-updateValueLabels();
+applyLang(LANG);
 
 // ------------------------------------ rechargement auto quand une MAJ sort
 // Vérifie la version toutes les 60 s. Si elle a changé, on recharge la page

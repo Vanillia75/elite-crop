@@ -15,6 +15,13 @@ Si Windows affiche « Windows a protégé votre ordinateur » au premier
 lancement : cliquer « Informations complémentaires » puis « Exécuter quand
 même » (c'est normal pour un programme maison, non signé).
 
+LANGUE / LANGUAGE
+-----------------
+En haut à droite de la fenêtre, un menu FR / EN change la langue de toute
+l'appli. Le choix est mémorisé.
+Top-right of the window, a FR / EN menu switches the whole app's language.
+Your choice is remembered.
+
 UTILISATION (3 étapes)
 ----------------------
 1. Clique « Ajouter des fichiers » (ou « Ajouter un dossier »).
@@ -27,10 +34,22 @@ UTILISATION (3 étapes)
    (Les réglages sont en %, donc ça s'adapte automatiquement aux fichiers
    de tailles différentes.)
 
-3. Clique « ⚡ Tout traiter ».
+3. (Facultatif) Choisis un mode de compression pour alléger les vidéos :
+   Qualité max (aucune) · Légère · Moyenne · Forte · Extrême (le plus léger).
+   Tu peux aussi compresser SANS rogner : laisse les deux curseurs à 0 et
+   choisis un mode de compression.
+
+4. Clique « ⚡ Tout traiter ».
    Les fichiers nettoyés arrivent dans un sous-dossier « Sans-watermark »
    à côté des originaux, et le dossier s'ouvre tout seul à la fin.
    Les originaux ne sont JAMAIS modifiés.
+
+COMPRESSION (vidéos trop lourdes)
+---------------------------------
+« Légère » garde la définition d'origine et allège juste un peu.
+« Moyenne », « Forte » et « Extrême » réduisent aussi la définition
+(max 1080p, puis 720p, puis 540p) pour des fichiers de plus en plus légers,
+faciles à envoyer. « Extrême » = les fichiers les plus petits possibles.
 
 VITESSE
 -------

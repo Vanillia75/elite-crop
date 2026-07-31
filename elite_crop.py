@@ -50,6 +50,124 @@ RED = "#E5484D"
 
 CANVAS_W, CANVAS_H = 640, 420
 
+# ------------------------------------------------------------------ langues
+LANG_FILE = os.path.join(os.path.expanduser("~"), ".elite_crop_lang")
+
+I18N = {
+    "fr": {
+        "title": "Elite Crop — enlève le watermark en bas à droite",
+        "addFiles": "➕ Ajouter des fichiers",
+        "addFolder": "📁 Ajouter un dossier",
+        "clearList": "🗑 Vider la liste",
+        "count": "{n} fichiers · {photos} photos · {videos} vidéos",
+        "navPrev": "◀ Fichier précédent",
+        "navNext": "Fichier suivant ▶",
+        "cutBottom": "Couper en bas",
+        "cutRight": "Couper à droite",
+        "compressLabel": "Compresser",
+        "mode_none": "Qualité max",
+        "mode_light": "Légère",
+        "mode_medium": "Moyenne",
+        "mode_strong": "Forte",
+        "mode_extreme": "Extrême",
+        "go": "⚡ Tout traiter",
+        "ready": "Ajoute des fichiers pour commencer.",
+        "processing": "Traitement {i}/{total} : {name}",
+        "doneOk": "✅ Terminé ! {n} fichier(s) dans les dossiers « {folder} ».",
+        "doneErr": "Terminé : {done} réussi(s), {err} erreur(s).",
+        "placeholder": ("Aperçu\n\nAjoute des fichiers : la zone rouge montre\n"
+                        "ce qui sera coupé (le watermark doit être dedans)."),
+        "previewFail": "Aperçu impossible :\n{e}",
+        "dlgFilesTitle": "Choisis tes photos et vidéos",
+        "dlgFilesType": "Photos et vidéos",
+        "dlgAllFiles": "Tous les fichiers",
+        "dlgFolderTitle": "Choisis un dossier",
+        "noFiles": "Ajoute d'abord des fichiers !",
+        "nothing": ("Rien à faire : aucun rognage et aucune compression.\n\n"
+                    "Monte « Couper en bas » et/ou « Couper à droite » pour couper "
+                    "le watermark, ou choisis un mode de compression pour exporter "
+                    "des fichiers plus légers sans rogner."),
+        "errorsTitle": "Elite Crop — erreurs",
+        "errorsIntro": "Fichiers en erreur :",
+        "ffmpegMissing": ("ffmpeg.exe introuvable dans le dossier « bin ».\n"
+                          "Le dossier Elite Crop doit rester complet (bin + programme)."),
+    },
+    "en": {
+        "title": "Elite Crop — remove the bottom-right watermark",
+        "addFiles": "➕ Add files",
+        "addFolder": "📁 Add a folder",
+        "clearList": "🗑 Clear list",
+        "count": "{n} files · {photos} photos · {videos} videos",
+        "navPrev": "◀ Previous file",
+        "navNext": "Next file ▶",
+        "cutBottom": "Cut bottom",
+        "cutRight": "Cut right",
+        "compressLabel": "Compress",
+        "mode_none": "Max quality",
+        "mode_light": "Light",
+        "mode_medium": "Medium",
+        "mode_strong": "Strong",
+        "mode_extreme": "Extreme",
+        "go": "⚡ Process all",
+        "ready": "Add files to get started.",
+        "processing": "Processing {i}/{total}: {name}",
+        "doneOk": "✅ Done! {n} file(s) in the “{folder}” folders.",
+        "doneErr": "Done: {done} succeeded, {err} error(s).",
+        "placeholder": ("Preview\n\nAdd files: the red zone shows\n"
+                        "what will be cut (the watermark must be inside it)."),
+        "previewFail": "Preview unavailable:\n{e}",
+        "dlgFilesTitle": "Choose your photos and videos",
+        "dlgFilesType": "Photos and videos",
+        "dlgAllFiles": "All files",
+        "dlgFolderTitle": "Choose a folder",
+        "noFiles": "Add files first!",
+        "nothing": ("Nothing to do: no cropping and no compression.\n\n"
+                    "Move “Cut bottom” and/or “Cut right” to cut the "
+                    "watermark, or pick a compression mode to export lighter files "
+                    "without cropping."),
+        "errorsTitle": "Elite Crop — errors",
+        "errorsIntro": "Files with errors:",
+        "ffmpegMissing": ("ffmpeg.exe not found in the “bin” folder.\n"
+                          "The Elite Crop folder must stay complete (bin + program)."),
+    },
+}
+
+
+def _detect_lang():
+    try:
+        with open(LANG_FILE, encoding="utf-8") as f:
+            v = f.read().strip()
+            if v in ("fr", "en"):
+                return v
+    except OSError:
+        pass
+    try:
+        import locale
+        loc = locale.getdefaultlocale()[0] or ""
+    except Exception:
+        loc = ""
+    return "fr" if loc.lower().startswith("fr") else "en"
+
+
+CUR_LANG = _detect_lang()
+
+
+def _save_lang(lang):
+    try:
+        with open(LANG_FILE, "w", encoding="utf-8") as f:
+            f.write(lang)
+    except OSError:
+        pass
+
+
+def t(key, **params):
+    d = I18N.get(CUR_LANG, I18N["fr"])
+    s = d.get(key, I18N["fr"].get(key, key))
+    for k, v in params.items():
+        s = s.replace("{" + k + "}", str(v))
+    return s
+
+
 # Empêche l'ouverture de fenêtres console noires à chaque appel ffmpeg.
 NOWINDOW = subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0
 
@@ -227,8 +345,8 @@ class App:
         self.preview_img = None      # PIL image du fichier affiché
         self.preview_photo = None    # version Tkinter (référence obligatoire)
         self.processing = False
+        self._i18n = []              # (widget, clé de traduction)
 
-        root.title("Elite Crop — enlève le watermark en bas à droite")
         root.configure(bg=NIGHT)
         root.resizable(False, False)
 
@@ -239,18 +357,23 @@ class App:
         style.configure("Horizontal.TProgressbar",
                         troughcolor=INK, background=GREEN)
 
-        # --- barre du haut : gestion des fichiers
+        # --- barre du haut : gestion des fichiers + langue
         top = tk.Frame(root, bg=NIGHT)
         top.pack(fill="x", padx=14, pady=(12, 6))
-        ttk.Button(top, text="➕ Ajouter des fichiers",
-                   command=self.add_files).pack(side="left")
-        ttk.Button(top, text="📁 Ajouter un dossier",
-                   command=self.add_folder).pack(side="left", padx=(8, 0))
-        ttk.Button(top, text="🗑 Vider la liste",
-                   command=self.clear_files).pack(side="left", padx=(8, 0))
-        self.count_label = tk.Label(top, text="0 fichier", bg=NIGHT,
+        self._reg(ttk.Button(top, command=self.add_files),
+                  "addFiles").pack(side="left")
+        self._reg(ttk.Button(top, command=self.add_folder),
+                  "addFolder").pack(side="left", padx=(8, 0))
+        self._reg(ttk.Button(top, command=self.clear_files),
+                  "clearList").pack(side="left", padx=(8, 0))
+        self.lang_box = ttk.Combobox(top, state="readonly", width=4,
+                                     values=["FR", "EN"], font=("Segoe UI", 9))
+        self.lang_box.set(CUR_LANG.upper())
+        self.lang_box.bind("<<ComboboxSelected>>", self._on_lang)
+        self.lang_box.pack(side="right")
+        self.count_label = tk.Label(top, text="", bg=NIGHT,
                                     fg=GREEN, font=("Segoe UI", 10, "bold"))
-        self.count_label.pack(side="right")
+        self.count_label.pack(side="right", padx=(0, 10))
 
         # --- aperçu
         self.canvas = tk.Canvas(root, width=CANVAS_W, height=CANVAS_H,
@@ -259,51 +382,80 @@ class App:
 
         nav = tk.Frame(root, bg=NIGHT)
         nav.pack(fill="x", padx=14)
-        ttk.Button(nav, text="◀ Fichier précédent", width=20,
-                   command=lambda: self.step_preview(-1)).pack(side="left")
+        self._reg(ttk.Button(nav, width=20,
+                             command=lambda: self.step_preview(-1)),
+                  "navPrev").pack(side="left")
         self.nav_label = tk.Label(nav, text="", bg=NIGHT, fg="white",
                                   font=("Segoe UI", 9))
         self.nav_label.pack(side="left", expand=True)
-        ttk.Button(nav, text="Fichier suivant ▶", width=20,
-                   command=lambda: self.step_preview(1)).pack(side="right")
+        self._reg(ttk.Button(nav, width=20,
+                             command=lambda: self.step_preview(1)),
+                  "navNext").pack(side="right")
 
         # --- réglages
         sliders = tk.Frame(root, bg=NIGHT)
         sliders.pack(fill="x", padx=14, pady=(10, 0))
         self.pct_bottom = tk.DoubleVar(value=8.0)
         self.pct_right = tk.DoubleVar(value=0.0)
-        self._make_slider(sliders, "Couper en bas", self.pct_bottom)
-        self._make_slider(sliders, "Couper à droite", self.pct_right)
+        self._make_slider(sliders, "cutBottom", self.pct_bottom)
+        self._make_slider(sliders, "cutRight", self.pct_right)
 
         # --- compression à l'export
         comp = tk.Frame(root, bg=NIGHT)
         comp.pack(fill="x", padx=14, pady=(8, 0))
-        tk.Label(comp, text="Compresser", width=14, anchor="w", bg=NIGHT,
-                 fg="white", font=("Segoe UI", 10)).pack(side="left")
+        self._reg(tk.Label(comp, width=14, anchor="w", bg=NIGHT, fg="white",
+                           font=("Segoe UI", 10)), "compressLabel").pack(side="left")
         self.compress = tk.StringVar(value="none")
-        for lvl, txt in (("none", "Qualité max"), ("light", "Légère"),
-                         ("medium", "Moyenne"), ("strong", "Forte"),
-                         ("extreme", "Extrême")):
-            tk.Radiobutton(comp, text=txt, value=lvl, variable=self.compress,
-                           bg=NIGHT, fg="white", selectcolor=INK,
-                           activebackground=NIGHT, activeforeground=GREEN,
-                           highlightthickness=0, font=("Segoe UI", 9)).pack(
-                side="left", padx=(6, 0))
+        for lvl in ("none", "light", "medium", "strong", "extreme"):
+            self._reg(tk.Radiobutton(comp, value=lvl, variable=self.compress,
+                                     bg=NIGHT, fg="white", selectcolor=INK,
+                                     activebackground=NIGHT, activeforeground=GREEN,
+                                     highlightthickness=0, font=("Segoe UI", 9)),
+                      "mode_" + lvl).pack(side="left", padx=(6, 0))
 
         # --- action + progression
         bottom = tk.Frame(root, bg=NIGHT)
         bottom.pack(fill="x", padx=14, pady=12)
-        self.go_btn = ttk.Button(bottom, text="⚡ Tout traiter",
-                                 style="Big.TButton", command=self.start)
+        self.go_btn = self._reg(ttk.Button(bottom, style="Big.TButton",
+                                           command=self.start), "go")
         self.go_btn.pack(fill="x")
         self.progress = ttk.Progressbar(bottom, maximum=100)
         self.progress.pack(fill="x", pady=(8, 0))
-        self.status = tk.Label(bottom, text="Ajoute des fichiers pour commencer.",
-                               bg=NIGHT, fg="white", font=("Segoe UI", 9),
-                               anchor="w", justify="left")
+        self.status = tk.Label(bottom, text="", bg=NIGHT, fg="white",
+                               font=("Segoe UI", 9), anchor="w", justify="left")
         self.status.pack(fill="x", pady=(6, 0))
 
-        self.draw_placeholder()
+        self.apply_lang()
+
+    # --------------------------------------------------------------- langue
+
+    def _reg(self, widget, key):
+        """Mémorise un widget et sa clé de traduction pour le mettre à jour
+        quand on change de langue."""
+        self._i18n.append((widget, key))
+        return widget
+
+    def _on_lang(self, _event=None):
+        self.set_lang(self.lang_box.get().lower())
+
+    def set_lang(self, lang):
+        global CUR_LANG
+        CUR_LANG = "en" if lang == "en" else "fr"
+        _save_lang(CUR_LANG)
+        self.apply_lang()
+
+    def apply_lang(self):
+        self.root.title(t("title"))
+        for widget, key in self._i18n:
+            widget.config(text=t(key))
+        self.lang_box.set(CUR_LANG.upper())
+        self.update_count()
+        if not self.processing:
+            self.status.config(text=t("ready"))
+        if self.files:
+            self.refresh_preview()
+        else:
+            self.draw_placeholder()
 
     # ------------------------------------------------------------- fichiers
 
@@ -311,12 +463,12 @@ class App:
         exts = sorted(PHOTO_EXTS | VIDEO_EXTS)
         pattern = " ".join("*" + e for e in exts)
         paths = filedialog.askopenfilenames(
-            title="Choisis tes photos et vidéos",
-            filetypes=[("Photos et vidéos", pattern), ("Tous les fichiers", "*.*")])
+            title=t("dlgFilesTitle"),
+            filetypes=[(t("dlgFilesType"), pattern), (t("dlgAllFiles"), "*.*")])
         self._add(paths)
 
     def add_folder(self):
-        folder = filedialog.askdirectory(title="Choisis un dossier")
+        folder = filedialog.askdirectory(title=t("dlgFolderTitle"))
         if not folder:
             return
         paths = [os.path.join(folder, f) for f in sorted(os.listdir(folder))]
@@ -344,18 +496,15 @@ class App:
         n = len(self.files)
         photos = sum(1 for f in self.files if is_photo(f))
         videos = n - photos
-        self.count_label.config(
-            text="{} fichier{} ({} photo{}, {} vidéo{})".format(
-                n, "s" if n > 1 else "", photos, "s" if photos > 1 else "",
-                videos, "s" if videos > 1 else ""))
+        self.count_label.config(text=t("count", n=n, photos=photos, videos=videos))
 
     # -------------------------------------------------------------- aperçu
 
-    def _make_slider(self, parent, label, var):
+    def _make_slider(self, parent, key, var):
         row = tk.Frame(parent, bg=NIGHT)
         row.pack(fill="x", pady=3)
-        tk.Label(row, text=label, width=14, anchor="w", bg=NIGHT, fg="white",
-                 font=("Segoe UI", 10)).pack(side="left")
+        self._reg(tk.Label(row, width=14, anchor="w", bg=NIGHT, fg="white",
+                           font=("Segoe UI", 10)), key).pack(side="left")
         scale = tk.Scale(row, from_=0, to=40, resolution=0.5, orient="horizontal",
                          variable=var, showvalue=False, length=380,
                          bg=NIGHT, fg="white", troughcolor=INK,
@@ -382,8 +531,7 @@ class App:
         self.canvas.delete("all")
         self.canvas.create_text(
             CANVAS_W // 2, CANVAS_H // 2, fill="#5a7a9a", font=("Segoe UI", 12),
-            text="Aperçu\n\nAjoute des fichiers : la zone rouge montre\nce qui sera coupé (le watermark doit être dedans).",
-            justify="center")
+            text=t("placeholder"), justify="center")
 
     def step_preview(self, delta):
         if not self.files:
@@ -404,7 +552,7 @@ class App:
             self.preview_img = None
             self.canvas.delete("all")
             self.canvas.create_text(CANVAS_W // 2, CANVAS_H // 2, fill=RED,
-                                    text="Aperçu impossible :\n" + str(e),
+                                    text=t("previewFail", e=e),
                                     font=("Segoe UI", 10), justify="center")
             return
         self.draw_overlay()
@@ -442,16 +590,11 @@ class App:
         if self.processing:
             return
         if not self.files:
-            messagebox.showinfo("Elite Crop", "Ajoute d'abord des fichiers !")
+            messagebox.showinfo("Elite Crop", t("noFiles"))
             return
         if (self.pct_bottom.get() == 0 and self.pct_right.get() == 0
                 and self.compress.get() == "none"):
-            messagebox.showinfo(
-                "Elite Crop",
-                "Rien à faire : aucun rognage et aucune compression.\n\n"
-                "Monte « Couper en bas » et/ou « Couper à droite » pour couper "
-                "le watermark, ou choisis un mode de compression pour exporter "
-                "des fichiers plus légers sans rogner.")
+            messagebox.showinfo("Elite Crop", t("nothing"))
             return
         self.processing = True
         self.go_btn.config(state="disabled")
@@ -467,7 +610,7 @@ class App:
         for i, path in enumerate(self.files):
             name = os.path.basename(path)
             self._ui(lambda n=name, i=i: self.status.config(
-                text="Traitement {}/{} : {}".format(i + 1, total, n)))
+                text=t("processing", i=i + 1, total=total, name=n)))
             try:
                 if is_photo(path):
                     last_dest = process_photo(path, pct_b, pct_r)
@@ -483,15 +626,12 @@ class App:
             self.progress.config(value=0)
             done = total - len(errors)
             if errors:
-                self.status.config(text="Terminé : {} réussi(s), {} erreur(s).".format(
-                    done, len(errors)))
+                self.status.config(text=t("doneErr", done=done, err=len(errors)))
                 messagebox.showwarning(
-                    "Elite Crop — erreurs",
-                    "Fichiers en erreur :\n\n" + "\n".join(errors[:10]))
+                    t("errorsTitle"),
+                    t("errorsIntro") + "\n\n" + "\n".join(errors[:10]))
             else:
-                self.status.config(
-                    text="✅ Terminé ! {} fichier(s) dans les dossiers « {} ».".format(
-                        done, OUT_DIRNAME))
+                self.status.config(text=t("doneOk", n=done, folder=OUT_DIRNAME))
             if last_dest:
                 os.startfile(os.path.dirname(last_dest))
 
@@ -536,10 +676,7 @@ def main():
         selftest()
         return
     if not os.path.exists(FFMPEG):
-        messagebox.showerror(
-            "Elite Crop",
-            "ffmpeg.exe introuvable dans le dossier « bin ».\n"
-            "Le dossier Elite Crop doit rester complet (bin + programme).")
+        messagebox.showerror("Elite Crop", t("ffmpegMissing"))
         return
     root = tk.Tk()
     App(root)
